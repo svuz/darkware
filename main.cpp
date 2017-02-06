@@ -321,7 +321,7 @@ AES256::ctr(Byte_Block<16> & buf)
 #include <fstream>
 
 int main(){
-    std::cout<<RANDOM::HASH(RANDOM::STR(32))<<std::endl;
+    std::cout<<RANDOM::HASH(RANDOM::STR(16))<<std::endl;
     return 0;
 
 }
