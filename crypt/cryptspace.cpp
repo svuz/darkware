@@ -14,6 +14,7 @@ std::string RANDOM::STR( size_t length ){
 			const size_t max_index = (sizeof(charset) - 1);
 			return charset[ rand() % max_index ];
 		};
+		srand(time(0));
 		std::string str(length,0);
 		std::generate_n( str.begin(), length, randchar );
 		return str;
