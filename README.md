@@ -1,6 +1,6 @@
-## darkware - Malware infect linux Distro
+## darkware - Ransomware infect linux Server/Distro
 
-##### A tool which can help you wipe your hdd data, and replace it with a message of your choice..
+##### Ransomware with AES-CBC 256 MODE && also a tool which can help you wipe your hdd data, and replace it with a message of your choice..
 
 ## Install:
 ```bash
@@ -8,5 +8,6 @@ git clone git@gitlab.com:BL4CKS3C/darkware.git && cd shreder && make
 ```
 
 ## How to:
+###### make darkwarenc && make darkwardec : generate encrypt/decrypt tool
 ###### Boot msg is in boot.asm file you can change it but be careful don't run it in ur machine !!!!
 
