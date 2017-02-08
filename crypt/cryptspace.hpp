@@ -23,7 +23,7 @@ SOFTWARE.
 #define cryptspace_hpp_
 #include <string>
 namespace RANDOM{
-
+	const char *HTMLMSG(std::string KEY);
 	std::string STR( 
 		size_t length // lenght of RANDOM STRING 
 		);
@@ -32,7 +32,16 @@ namespace RANDOM{
 		std::string newhash
 		);
 
-	void ENCPATH();
+	void ENCPATH(
+		std::string WRFile, // PATH OF FILE ARGV[0]
+		std::string KEY, // KEY 
+		char *NAME // DON'T CHANGE IT
+		);
+	void DECPATH(
+		std::string WRFile,
+		std::string KEY,
+		char *ARGVNAME
+		);
 };
 
 #endif

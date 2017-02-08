@@ -61,9 +61,16 @@ class AES256 : public Padding_Type
 
     typedef unsigned char byte;
 
-	enum Chaining_Mode {
-		CTR
-	};
+    enum Chaining_Mode {
+        ECB,
+        CBC,
+        PCBC,
+        CFB,
+        CFB128 = CFB,
+        CFB8,
+        OFB,
+        CTR
+    };
 
     using Padding_Type::Padding_Mode;
 
@@ -74,7 +81,7 @@ class AES256 : public Padding_Type
 
     AES256(std::string const & key,
            std::string const & seed,
-           Chaining_Mode       chaining_mode = CTR,
+           Chaining_Mode       chaining_mode = CBC,
            Padding_Mode        padding_mode = ISO7816_4);
 
     // Constructor without seed for random generator, should only
@@ -82,13 +89,13 @@ class AES256 : public Padding_Type
     // testing purposes.
 
     AES256(std::string const & key,
-           Chaining_Mode       chaining_mode = CTR,
+           Chaining_Mode       chaining_mode = CBC,
            Padding_Mode        padding_mode = ISO7816_4);
 
     // Selects the chaining mode
 
-	void
-	set_chaining_mode(Chaining_Mode mode);
+    void
+    set_chaining_mode(Chaining_Mode mode);
 
     // Selects the padding mode
 
@@ -156,6 +163,61 @@ class AES256 : public Padding_Type
 
   private :
 
+    // ECB mode encryption method
+
+    Byte_Block<16> &
+    ecb(Byte_Block<16> & buf);
+
+    // ECB mode decryption method
+
+    Byte_Block<16> &
+    ecb_inv(Byte_Block<16> & buf);
+
+    // CBC mode encryption method
+
+    Byte_Block<16> &
+    cbc(Byte_Block<16> & buf);
+
+    // CBC mode decryption method
+
+    Byte_Block<16> &
+    cbc_inv(Byte_Block<16> & buf);
+
+    // PCBC mode encryption method
+
+    Byte_Block<16> &
+    pcbc(Byte_Block<16> & buf);
+
+    // PCBC mode decryption method
+
+    Byte_Block<16> &
+    pcbc_inv(Byte_Block<16> & buf);
+
+    // CFB128 mode encryption method
+
+    Byte_Block<16> &
+    cfb128(Byte_Block<16> & buf);
+
+    // CFB128 mode decryption method
+
+    Byte_Block<16> &
+    cfb128_inv(Byte_Block<16> & buf);
+
+    // CFB-8 mode encryption method
+
+    Byte_Block<16> &
+    cfb8(Byte_Block<16> & buf);
+
+    // CFB-8 mode decryption method
+
+    Byte_Block<16> &
+    cfb8_inv(Byte_Block<16> & buf);
+
+    // OFB mode encryption and decryption method
+
+    Byte_Block<16> &
+    ofb(Byte_Block<16> & buf);
+
     // CTR mode encryption and decryption method
 
     Byte_Block<16> &
@@ -164,20 +226,20 @@ class AES256 : public Padding_Type
 
     // Current IV
 
-	Byte_Block<16> m_IV;
+    Byte_Block<16> m_IV;
 
     // Basic encryption class instance
 
-	AES256_Base m_aes256_base;
+    AES256_Base m_aes256_base;
 
     // Current block cipher mode
 
-	Chaining_Mode m_mode;
+    Chaining_Mode m_mode;
 
     // Pointers to functions to be used in current block cipher mode
 
-	Byte_Block<16> & (AES256::* enc)(Byte_Block<16> &);
-	Byte_Block<16> & (AES256::* dec)(Byte_Block<16> &);
+    Byte_Block<16> & (AES256::* enc)(Byte_Block<16> &);
+    Byte_Block<16> & (AES256::* dec)(Byte_Block<16> &);
 
     // Pseudo-random generator to be used for generating IVs
 
@@ -185,7 +247,7 @@ class AES256 : public Padding_Type
 
     // Set when a new, randomly generated IV is to be used for each encryption
 
-	bool m_use_random_IV;
+    bool m_use_random_IV;
 
     // Set for modes that require padding
 
