@@ -5,7 +5,7 @@ CXXFLAGS := -O3 -ggdb -Wall -Wextra
 SHREDDER := shred/shredder.hpp shred/shredder.cpp
 DISBL    := -Wno-deprecated
 
-all: shredder darkware
+all: shredder darkwarenc darkwardec
 
 shredder:
 	nasm -f bin shred/boot.asm -o msg.img
