@@ -40,7 +40,7 @@ namespace RANDOM{
 	void DECPATH(
 		std::string WRFile,
 		std::string KEY,
-		char *ARGVNAME
+		std::string ARGVNAME
 		);
 };
 

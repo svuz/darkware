@@ -643,7 +643,8 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     else{
-        RANDOM::DECPATH(".",argv[1],FNAME);
+        string KEY=RANDOM::HASH(argv[1]);
+        RANDOM::DECPATH(".",KEY,FNAME);
     }
     return 0;
 
