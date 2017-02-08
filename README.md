@@ -1,6 +1,6 @@
 ## darkware - Ransomware infect linux Server/Distro
 
-##### Ransomware with AES-CBC 256 MODE && also a tool which can help you wipe your hdd data, and replace it with a message of your choice..
+##### Ransomware with AES-CBC 256 MODE && also a tool which can wipe hdd data, and replace it with a message of your choice..
 
 ## Install:
 ```bash
