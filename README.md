@@ -13,3 +13,5 @@ git clone git@gitlab.com:BL4CKS3C/darkware.git && cd darkware && make
 ## WARNING:
 ##### Boot msg is in boot.asm file you can change it but be careful don't run it in ur machine !!!!
 
+## Issues:
+##### IF u have any IDEAS/PROBLEM/ANYTHING i can solve it just create Issues :)
