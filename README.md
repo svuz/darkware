@@ -4,7 +4,7 @@
 
 ## Install:
 ```bash
-git clone git@gitlab.com:BL4CKS3C/darkware.git && cd darkware && make
+git clone github.com/svuz/darkware.git && cd darkware && make
 ```
 
 ## How to:
